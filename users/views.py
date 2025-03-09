@@ -14,6 +14,8 @@ from rest_framework.generics import GenericAPIView
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.hashers import make_password
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework import serializers
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
@@ -36,18 +38,31 @@ class RegisterView(generics.CreateAPIView):
             return Response({'message': 'User created successfully. Check your email to verify your account.'})
         return Response({'message': 'User created successfully. No email verification required.'})
 
-class LoginView(generics.GenericAPIView):
-    def post(self, request):
+
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+class CustomLoginSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data['username'] = self.user.username
+        return data
+
+class UserLoginView(TokenObtainPairView):
+    serializer_class = CustomLoginSerializer
+
+    def post(self, request, *args, **kwargs):
         username = request.data.get('username')
         password = request.data.get('password')
-        user = authenticate(username=username, password=password)
-        if user:
-            refresh = RefreshToken.for_user(user)
+
+        user = CustomUser.objects.filter(username=username).first()
+        
+        if user and user.check_password(password):
+            refresh = self.get_serializer().get_token(user)
             return Response({
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             })
-        return Response({'message': 'Invalid credentials'}, status=400)
+        return Response({'error': 'Invalid Credentials'}, status=401)
+
 
 class VerifyEmailView(generics.GenericAPIView):
     def get(self, request, uidb64, token):
