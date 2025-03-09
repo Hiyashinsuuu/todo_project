@@ -1,4 +1,4 @@
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.response import Response
 from django.core.mail import send_mail
 from django.conf import settings
@@ -12,18 +12,28 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from rest_framework.generics import GenericAPIView
 from django.contrib.auth import get_user_model
-from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework import serializers
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny
 
 User = get_user_model()
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+
+        # If login fails
+        if response.status_code == 401:
+            return Response({"detail": "Wrong credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # If user doesn't exist
+        if response.status_code == 404:
+            return Response({"detail": "User does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        return response
     def validate(self, attrs):
         username_or_email = attrs.get("username")
         password = attrs.get("password")
@@ -41,28 +51,43 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class RegisterView(generics.CreateAPIView):
+    """Register a new user with email verification."""
     queryset = CustomUser.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
 
 
     def perform_create(self, serializer):
-        user = serializer.save()
-        if user.email:
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
-            verification_link = self.request.build_absolute_uri(
-                reverse('email-verify', kwargs={'uidb64': uid, 'token': token})
+        try:
+            user = serializer.save()
+            if user.email:
+                # Generate email verification link
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = default_token_generator.make_token(user)
+                verification_link = self.request.build_absolute_uri(
+                    reverse('email-verify', kwargs={'uidb64': uid, 'token': token})
+                )
+                send_mail(
+                    'Email Verification',
+                    f'Click the link to verify your email: {verification_link}',
+                    settings.EMAIL_HOST_USER,
+                    [user.email],
+                    fail_silently=False,
+                )
+                return Response(
+                    {'message': 'User created successfully. Check your email to verify your account.'},
+                    status=status.HTTP_201_CREATED
+                )
+            return Response(
+                {'message': 'User created successfully. No email verification required.'},
+                status=status.HTTP_201_CREATED
             )
-            send_mail(
-                'Email Verification',
-                f'Click the link to verify your email: {verification_link}',
-                settings.EMAIL_HOST_USER,
-                [user.email],
-                fail_silently=False,
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
             )
-            return Response({'message': 'User created successfully. Check your email to verify your account.'})
-        return Response({'message': 'User created successfully. No email verification required.'})
+
 
 class CustomLoginSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
@@ -82,10 +107,16 @@ class UserLoginView(TokenObtainPairView):
         if user and user.check_password(password):
             refresh = self.get_serializer().get_token(user)
             return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            })
-        return Response({'error': 'Invalid Credentials'}, status=401)
+                "message": "Login successful!",
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "full_name": user.full_name}
+            },status=status.HTTP_200_OK)
+        return Response({'error': 'Invalid Credentials. Please try again'}, status=401)
 
 
 class VerifyEmailView(generics.GenericAPIView):
