@@ -20,7 +20,7 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/users/register/', RegisterView.as_view(), name='register'),
     path('api/users/login/', UserLoginView.as_view(), name='login'),
-    # path('api/users/google/', GoogleLogin.as_view(), name='google_login'),
+    #path('api/users/google/', GoogleLogin.as_view(), name='google_login'),
     path('accounts/', include('allauth.urls')), 
     path('api/users/verify-email/<uidb64>/<token>/', VerifyEmailView.as_view(), name='email-verify'),
     path('api/users/password-reset/', PasswordResetRequestView.as_view(), name='password-reset'),

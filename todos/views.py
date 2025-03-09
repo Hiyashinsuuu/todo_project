@@ -26,26 +26,33 @@ class CreateTaskView(APIView):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated]
+    
     def post(self, request):
+        data = request.data.copy()
+        data['user'] = request.user.id
         serializer = TaskSerializer(data=request.data, context={'request': request})
+
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# ✅ Update a task
-@api_view(["PUT"])
+    
+# ✅ Edit task
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
 def update_task(request, task_id):
     try:
-        task = Task.objects.get(id=task_id)
+        task = Task.objects.get(id=task_id, user=request.user)  # Ensure user can only edit their own tasks
     except Task.DoesNotExist:
-        return Response({"error": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"detail": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = TaskSerializer(task, data=request.data)
+    serializer = TaskSerializer(task, data=request.data, partial=True)  # Use partial=True for PATCH
     if serializer.is_valid():
         serializer.save()
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 # ✅ Delete a task
 @api_view(["DELETE"])

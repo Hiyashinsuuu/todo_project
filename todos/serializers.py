@@ -5,6 +5,7 @@ class TaskSerializer(serializers.ModelSerializer):
     is_important = serializers.BooleanField(default=False)  # Toggle true/false
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())  # Auto-assign logged-in user
     category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), required=False, allow_null=True)
+    description = serializers.CharField(required=False, allow_blank=True) 
 
     class Meta:
         model = Task
@@ -14,18 +15,24 @@ class TaskSerializer(serializers.ModelSerializer):
             "created_at", "updated_at"
         ]
 
-    def create(self, validated_data):
-        request = self.context.get("request")
-        if request and request.user and request.user.is_authenticated:
-            validated_data["user"] = request.user
-        else:
-            raise serializers.ValidationError({"user": "User must be authenticated."})
-        
-        # Assign "Random" category if no category is provided
-        if not validated_data.get("category"):
-            validated_data["category"], _ = Category.objects.get_or_create(user=request.user, name="Random")
+        def validate_title(self, value):
+            """ Ensure title is not empty """
+            if not value.strip():
+                raise serializers.ValidationError("Title is required.")
+            return value
 
-        return super().create(validated_data)
+        def create(self, validated_data):
+            request = self.context.get("request")
+            if request and request.user and request.user.is_authenticated:
+                validated_data["user"] = request.user
+            else:
+                raise serializers.ValidationError({"user": "User must be authenticated."})
+            
+            # Assign "Random" category if no category is provided
+            if not validated_data.get("category"):
+                validated_data["category"], _ = Category.objects.get_or_create(user=request.user, name="Random")
+
+            return super().create(validated_data)
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:

@@ -29,7 +29,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         validated_data['first_name'] = name_parts[0]
         validated_data['last_name'] = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
         user = CustomUser.objects.create_user(**validated_data)
-        user.is_active = False if validated_data.get('email') else True
+        user.is_active = True 
+        # user.is_active = False if validated_data.get('email') else True
         user.save()
 
         if validated_data.get('email'):
