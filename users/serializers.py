@@ -6,46 +6,46 @@ from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 class RegisterSerializer(serializers.ModelSerializer):
-    full_name = serializers.CharField(required=True)
-    email = serializers.EmailField(required=False)
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    confirm_password = serializers.CharField(write_only=True, required=True)
+    confirm_password = serializers.CharField(write_only=True)
 
     class Meta:
         model = CustomUser
-        fields = ['username', 'email', 'password', 'confirm_password', 'full_name']
+        fields = ["full_name", "username", "email", "password", "confirm_password"]
+        extra_kwargs = {"password": {"write_only": True}}
 
-    def validate(self, attrs):
-        if attrs['password'] != attrs['confirm_password']:
-            raise serializers.ValidationError({'confirm_password': "Password fields didn't match."})
-        return attrs
+    def validate(self, data):
+        """Ensure passwords match and follow security rules."""
+        if data["password"] != data["confirm_password"]:
+            raise serializers.ValidationError({"password": ["Passwords do not match."]})
+
+        try:
+            validate_password(data["password"])  # Validate Django's password rules
+        except ValidationError as e:
+            raise serializers.ValidationError({"password": e.messages})
+
+        return data
 
     def create(self, validated_data):
-        validated_data.pop('confirm_password')
-        full_name = validated_data.pop('full_name')
+        """Create user and handle additional fields."""
+        validated_data.pop("confirm_password")  # Remove confirm_password
+        full_name = validated_data.pop("full_name", "")
         name_parts = full_name.split()
-        validated_data['first_name'] = name_parts[0]
-        validated_data['last_name'] = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
-        user = CustomUser.objects.create_user(**validated_data)
-        user.is_active = True 
-        # user.is_active = False if validated_data.get('email') else True
-        user.save()
+        validated_data["first_name"] = name_parts[0] if name_parts else ""
+        validated_data["last_name"] = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
 
-        if validated_data.get('email'):
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
-            verification_link = f"http://localhost:8000/api/users/verify-email/{uid}/{token}/"
-            send_mail(
-                'Email Verification',
-                f'Click the link to verify your email: {verification_link}',
-                settings.EMAIL_HOST_USER,
-                [validated_data['email']],
-                fail_silently=False,
-            )
+        try:
+            user = CustomUser.objects.create_user(**validated_data)
+            user.is_active = True
+            user.save()
+            return user
+        except Exception as e:
+            raise serializers.ValidationError({"error": str(e)}) # ✅ Ensure user is returned
 
-        return user
+
+
 
 class PasswordResetSerializer(serializers.Serializer):
     email = serializers.EmailField()

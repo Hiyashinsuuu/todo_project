@@ -18,6 +18,10 @@ from rest_framework import serializers
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.permissions import AllowAny
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+import re
+
 
 User = get_user_model()
 
@@ -51,44 +55,57 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class RegisterView(generics.CreateAPIView):
-    """Register a new user with email verification."""
+    """Register a new user with email verification and strong password validation."""
     queryset = CustomUser.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
 
+    def validate_password(self, password):
+        """Ensure password is at least 8 chars and contains both uppercase & lowercase letters."""
+        if len(password) < 8:
+            return "Password must be at least 8 characters long."
+        if not re.search(r"[a-z]", password) or not re.search(r"[A-Z]", password):
+            return "Password must contain both uppercase and lowercase letters."
+        return None  # ✅ No errors
 
     def perform_create(self, serializer):
-        try:
-            user = serializer.save()
-            if user.email:
-                # Generate email verification link
-                uid = urlsafe_base64_encode(force_bytes(user.pk))
-                token = default_token_generator.make_token(user)
-                verification_link = self.request.build_absolute_uri(
-                    reverse('email-verify', kwargs={'uidb64': uid, 'token': token})
-                )
-                send_mail(
-                    'Email Verification',
-                    f'Click the link to verify your email: {verification_link}',
-                    settings.EMAIL_HOST_USER,
-                    [user.email],
-                    fail_silently=False,
-                )
-                return Response(
-                    {'message': 'User created successfully. Check your email to verify your account.'},
-                    status=status.HTTP_201_CREATED
-                )
-            return Response(
-                {'message': 'User created successfully. No email verification required.'},
-                status=status.HTTP_201_CREATED
+        """Handles user creation with email verification."""
+        user_data = serializer.validated_data
+        password = user_data["password"]
+
+        # ✅ Validate password
+        password_error = self.validate_password(password)
+        if password_error:
+            raise serializers.ValidationError({"password": [password_error]})
+
+        # ✅ Create user
+        user = serializer.save()
+
+        # ✅ Email Verification (if email is provided)
+        if user.email:
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            verification_link = self.request.build_absolute_uri(
+                reverse('email-verify', kwargs={'uidb64': uid, 'token': token})
             )
-        except Exception as e:
+            send_mail(
+                'Email Verification',
+                f'Click the link to verify your email: {verification_link}',
+                settings.EMAIL_HOST_USER,
+                [user.email],
+                fail_silently=False,
+            )
             return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
+                {"message": "User created successfully. Check your email to verify your account."},
+                status=status.HTTP_201_CREATED,
             )
 
+        return Response(
+            {"message": "User created successfully. No email verification required."},
+            status=status.HTTP_201_CREATED,
+        )
 
+        
 class CustomLoginSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
