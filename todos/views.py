@@ -9,7 +9,53 @@ from .utils import notify_upcoming_tasks
 from .serializers import TaskSerializer, CategorySerializer
 from django.utils.timezone import now, timedelta
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework import status
+from rest_framework import generics, permissions, status
+from .serializers import SettingsSerializer
+from django.contrib.auth import get_user_model
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])  # Only authenticated users can access
+def dashboard_stats(request):
+    user = request.user  # Get the logged-in user
+
+    total_tasks = Task.objects.filter(user=user).count()
+    completed_tasks = Task.objects.filter(user=user, is_completed=True).count()
+    incomplete_tasks = total_tasks - completed_tasks
+    important_tasks = Task.objects.filter(user=user, is_important=True).count()
+
+    # Count tasks per category
+    categories = Category.objects.filter(user=user)
+    category_counts = {category.name: Task.objects.filter(user=user, category=category).count() for category in categories}
+
+    return Response({
+        "total_tasks": total_tasks,
+        "completed_tasks": completed_tasks,
+        "incomplete_tasks": incomplete_tasks,
+        "important_tasks": important_tasks,
+        "tasks_by_category": category_counts,
+    })
+
+
+
+User = get_user_model()
+
+# Update User Profile
+class UserSettingsView(generics.RetrieveUpdateAPIView):
+    queryset = User.objects.all()
+    serializer_class = SettingsSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+# Delete User Account
+class DeleteAccountView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        user.delete()
+        return Response({"message": "Account deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 
 
