@@ -1,4 +1,4 @@
-from rest_framework import viewsets, filters, serializers
+from rest_framework import viewsets, filters, serializers, permissions
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,8 +8,9 @@ from .models import Task, Category
 from .utils import notify_upcoming_tasks  
 from .serializers import TaskSerializer, CategorySerializer
 from django.utils.timezone import now, timedelta
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework import status
+
 
 
 # ✅ Get all tasks
@@ -20,9 +21,13 @@ def get_tasks(request):
     return Response(serializer.data)
 
 # ✅ Create a new task
+@permission_classes([IsAuthenticated]) 
 class CreateTaskView(APIView):
+    queryset = Task.objects.all()
+    serializer_class = TaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
     def post(self, request):
-        serializer = TaskSerializer(data=request.data)
+        serializer = TaskSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)

@@ -16,6 +16,28 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework import serializers
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        username_or_email = attrs.get("username")
+        password = attrs.get("password")
+
+        user = User.objects.filter(username=username_or_email).first() or User.objects.filter(email=username_or_email).first()
+
+        if user and user.check_password(password):
+            return super().validate(attrs)
+
+        raise serializers.ValidationError("Invalid credentials")
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
@@ -38,8 +60,6 @@ class RegisterView(generics.CreateAPIView):
             return Response({'message': 'User created successfully. Check your email to verify your account.'})
         return Response({'message': 'User created successfully. No email verification required.'})
 
-
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 class CustomLoginSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
@@ -135,3 +155,6 @@ class PasswordResetConfirmView(GenericAPIView):
             return Response({'error': 'Invalid token'}, status=400)
         except Exception:
             return Response({'error': 'Invalid request'}, status=400)
+        
+
+
