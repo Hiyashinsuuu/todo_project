@@ -3,14 +3,14 @@ from rest_framework.routers import DefaultRouter
 from dj_rest_auth.registration.views import SocialLoginView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from users.views import RegisterView, UserLoginView, VerifyEmailView, PasswordResetRequestView, PasswordResetConfirmView, CustomTokenObtainPairView 
-from todos.views import TaskViewSet, CategoryViewSet, progress_tracker, task_notifications, CreateTaskView, update_task, delete_task, get_tasks
+from todos.views import TaskViewSet, ProjectViewSet, progress_tracker, task_notifications, CreateTaskView, update_task, delete_task, get_tasks
 from django.contrib import admin
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
 router = DefaultRouter()
 router.register(r'tasks', TaskViewSet, basename='task')
-router.register(r'categories', CategoryViewSet, basename='category')
+router.register(r'categories', ProjectViewSet, basename='project')
 
 class GoogleLogin(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter

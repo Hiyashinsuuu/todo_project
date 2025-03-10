@@ -1,52 +1,49 @@
-from rest_framework import viewsets, filters, serializers, permissions
-from rest_framework.views import APIView
-from rest_framework.decorators import action
-from rest_framework.response import Response
+from rest_framework import viewsets, filters, serializers, permissions, status, generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Task, Category
-from .utils import notify_upcoming_tasks  
-from .serializers import TaskSerializer, CategorySerializer
-from django.utils.timezone import now, timedelta
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework import generics, permissions, status
-from .serializers import SettingsSerializer
 from django.contrib.auth import update_session_auth_hash, get_user_model, authenticate
 from django.contrib.auth.hashers import check_password
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.utils.timezone import now
+from .models import Task, Project
+from .utils import notify_upcoming_tasks
+from .serializers import TaskSerializer, ProjectSerializer, SettingsSerializer
 
+User = get_user_model()
+
+### 🟢 DASHBOARD STATS ###
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])  # Only authenticated users can access
+@permission_classes([IsAuthenticated])  
 def dashboard_stats(request):
-    user = request.user  # Get the logged-in user
-
+    user = request.user  
     total_tasks = Task.objects.filter(user=user).count()
     completed_tasks = Task.objects.filter(user=user, is_completed=True).count()
     incomplete_tasks = total_tasks - completed_tasks
     important_tasks = Task.objects.filter(user=user, is_important=True).count()
 
-    # Count tasks per category
-    categories = Category.objects.filter(user=user)
-    category_counts = {category.name: Task.objects.filter(user=user, category=category).count() for category in categories}
+    projects = Project.objects.filter(user=user)
+    project_counts = {project.name: Task.objects.filter(user=user, project=project).count() for project in projects}
 
     return Response({
         "total_tasks": total_tasks,
         "completed_tasks": completed_tasks,
         "incomplete_tasks": incomplete_tasks,
         "important_tasks": important_tasks,
-        "tasks_by_category": category_counts,
+        "tasks_by_project": project_counts,
     })
 
-User = get_user_model()
 
+### 🟢 USER SETTINGS ###
 class UserSettingsView(generics.RetrieveUpdateAPIView):
-    """Retrieve and update user settings (username & password)."""
     queryset = User.objects.all()
     serializer_class = SettingsSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return self.request.user  # Get the authenticated user
+        return self.request.user  
 
     def patch(self, request, *args, **kwargs):
         user = self.get_object()
@@ -54,8 +51,6 @@ class UserSettingsView(generics.RetrieveUpdateAPIView):
 
         if serializer.is_valid():
             serializer.save()
-
-            # Keep user logged in if password is changed
             if "password" in request.data:
                 update_session_auth_hash(request, user)
 
@@ -64,25 +59,23 @@ class UserSettingsView(generics.RetrieveUpdateAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, *args, **kwargs):
-        """Delete user account after confirming password."""
         user = self.get_object()
         password = request.data.get("password")
 
         if not password:
             return Response({"error": "Password is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Verify the password
         if not check_password(password, user.password):
             return Response({"error": "Incorrect password"}, status=status.HTTP_403_FORBIDDEN)
 
         user.delete()
         return Response({"message": "Account deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
     
-    
+
+### 🟢 UPLOAD PROFILE PICTURE ###
 class UploadProfilePictureView(APIView):
-    """Upload user profile picture."""
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]  # Allow file uploads
+    parser_classes = [MultiPartParser, FormParser]  
 
     def post(self, request, *args, **kwargs):
         user = request.user
@@ -95,40 +88,39 @@ class UploadProfilePictureView(APIView):
 
         return Response({"message": "Profile picture updated successfully", "profile_picture": user.profile_picture.url}, status=status.HTTP_200_OK)
 
-# ✅ Get all tasks
+
+### 🟢 TASK MANAGEMENT ###
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def get_tasks(request):
-    tasks = Task.objects.all()
+    tasks = Task.objects.filter(user=request.user)  
     serializer = TaskSerializer(tasks, many=True)
     return Response(serializer.data)
 
-# ✅ Create a new task
-@permission_classes([IsAuthenticated]) 
+
 class CreateTaskView(APIView):
-    queryset = Task.objects.all()
-    serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def post(self, request):
         data = request.data.copy()
-        data['user'] = request.user.id
-        serializer = TaskSerializer(data=request.data, context={'request': request})
+        data["user"] = request.user.id  
+        serializer = TaskSerializer(data=data, context={"request": request})
 
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-# ✅ Edit task
+
+
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def update_task(request, task_id):
     try:
-        task = Task.objects.get(id=task_id, user=request.user)  # Ensure user can only edit their own tasks
+        task = Task.objects.get(id=task_id, user=request.user)  
     except Task.DoesNotExist:
         return Response({"detail": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = TaskSerializer(task, data=request.data, partial=True)  # Use partial=True for PATCH
+    serializer = TaskSerializer(task, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -136,36 +128,44 @@ def update_task(request, task_id):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ✅ Delete a task
 @api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
 def delete_task(request, task_id):
     try:
-        task = Task.objects.get(id=task_id)
+        task = Task.objects.get(id=task_id, user=request.user)  
         task.delete()
         return Response({"message": "Task deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
     except Task.DoesNotExist:
         return Response({"error": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
 
-@api_view(['GET'])
+
+### 🟢 TASK NOTIFICATIONS ###
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def task_notifications(request):
     user = request.user
     notifications = notify_upcoming_tasks(user)
-    return Response({'notifications': notifications})
+    return Response({"notifications": notifications})
 
-@api_view(['GET'])
+
+### 🟢 PROGRESS TRACKER ###
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def progress_tracker(request):
     user = request.user
     total_tasks = Task.objects.filter(user=user).count()
     completed_tasks = Task.objects.filter(user=user, is_completed=True).count()
-    return Response({'total_tasks': total_tasks, 'completed_tasks': completed_tasks})
+    return Response({"total_tasks": total_tasks, "completed_tasks": completed_tasks})
 
+
+### 🟢 TASK VIEWSET ###
 class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = TaskSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
-    filterset_fields = ['is_completed', 'is_important', 'category', 'priority', 'recurring', 'deadline']
-    ordering_fields = ['deadline', 'created_at']
-    search_fields = ['title', 'description']
+    filterset_fields = ["is_completed", "is_important", "project", "priority", "recurring", "deadline"]
+    ordering_fields = ["deadline", "created_at"]
+    search_fields = ["title", "description"]
 
     def get_queryset(self):
         return Task.objects.filter(user=self.request.user)
@@ -173,21 +173,22 @@ class TaskViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         task = serializer.save(user=self.request.user)
         if task.deadline and task.deadline < now():
-            raise serializers.ValidationError({'deadline': "Deadline cannot be set in the past."})
+            raise serializers.ValidationError({"deadline": "Deadline cannot be set in the past."})
 
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
     def progress(self, request):
         total_tasks = Task.objects.filter(user=request.user).count()
         completed_tasks = Task.objects.filter(user=request.user, is_completed=True).count()
-        return Response({'completed_tasks': completed_tasks, 'total_tasks': total_tasks})
+        return Response({"completed_tasks": completed_tasks, "total_tasks": total_tasks})
 
-class CategoryViewSet(viewsets.ModelViewSet):
+
+### 🟢 PROJECT VIEWSET ###
+class ProjectViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
-    serializer_class = CategorySerializer
+    serializer_class = ProjectSerializer
 
     def get_queryset(self):
-        return Category.objects.filter(user=self.request.user)
+        return Project.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-
