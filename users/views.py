@@ -6,7 +6,7 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, smart_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
-from .serializers import RegisterSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer
+from .serializers import RegisterSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer, CustomUserSerializer
 from .models import CustomUser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
@@ -17,13 +17,32 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework import serializers
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 import re
+from rest_framework.decorators import api_view, permission_classes
+
 
 
 User = get_user_model()
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_details(request):
+    user = request.user
+    serializer = CustomUserSerializer(user)
+    return Response(serializer.data)
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_user_details(request):
+    user = request.user
+    serializer = CustomUserSerializer(user, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=400)
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def post(self, request, *args, **kwargs):
