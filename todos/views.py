@@ -13,6 +13,7 @@ from rest_framework import generics, permissions, status
 from .serializers import SettingsSerializer
 from django.contrib.auth import update_session_auth_hash, get_user_model, authenticate
 from django.contrib.auth.hashers import check_password
+from rest_framework.parsers import MultiPartParser, FormParser
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])  # Only authenticated users can access
@@ -77,17 +78,22 @@ class UserSettingsView(generics.RetrieveUpdateAPIView):
         user.delete()
         return Response({"message": "Account deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
     
-    def upload_profile_picture(self, request, *args, **kwargs):
-        """Handle profile picture upload."""
-        user = self.get_object()
+    
+class UploadProfilePictureView(APIView):
+    """Upload user profile picture."""
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]  # Allow file uploads
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+
         if "profile_picture" not in request.FILES:
             return Response({"error": "No image uploaded"}, status=status.HTTP_400_BAD_REQUEST)
 
         user.profile_picture = request.FILES["profile_picture"]
         user.save()
+
         return Response({"message": "Profile picture updated successfully", "profile_picture": user.profile_picture.url}, status=status.HTTP_200_OK)
-
-
 
 # ✅ Get all tasks
 @api_view(["GET"])
