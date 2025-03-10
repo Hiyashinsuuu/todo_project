@@ -174,6 +174,7 @@ CORS_ALLOW_CREDENTIALS = True
 EMAIL_REMINDER_ENABLED = True
 REMINDER_HOURS_BEFORE = 2
 
+# For the google sign in page / should be last part of connecting
 # SOCIALACCOUNT_PROVIDERS = {
 #     'google': {
 #         'APP': {
@@ -188,7 +189,8 @@ SITE_ID = 1
 
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+# ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 SOCIALACCOUNT_QUERY_EMAIL = True
 ACCOUNT_USERNAME_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'optional'

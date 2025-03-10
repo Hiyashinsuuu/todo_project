@@ -104,7 +104,6 @@ class RegisterView(generics.CreateAPIView):
             {"message": "User created successfully. No email verification required."},
             status=status.HTTP_201_CREATED,
         )
-
         
 class CustomLoginSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):

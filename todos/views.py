@@ -11,7 +11,8 @@ from django.utils.timezone import now, timedelta
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework import generics, permissions, status
 from .serializers import SettingsSerializer
-from django.contrib.auth import get_user_model
+from django.contrib.auth import update_session_auth_hash, get_user_model, authenticate
+from django.contrib.auth.hashers import check_password
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])  # Only authenticated users can access
@@ -35,27 +36,56 @@ def dashboard_stats(request):
         "tasks_by_category": category_counts,
     })
 
-
-
 User = get_user_model()
 
-# Update User Profile
 class UserSettingsView(generics.RetrieveUpdateAPIView):
+    """Retrieve and update user settings (username & password)."""
     queryset = User.objects.all()
     serializer_class = SettingsSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return self.request.user
+        return self.request.user  # Get the authenticated user
 
-# Delete User Account
-class DeleteAccountView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    def patch(self, request, *args, **kwargs):
+        user = self.get_object()
+        serializer = self.get_serializer(user, data=request.data, partial=True)
 
+        if serializer.is_valid():
+            serializer.save()
+
+            # Keep user logged in if password is changed
+            if "password" in request.data:
+                update_session_auth_hash(request, user)
+
+            return Response({"message": "Account updated successfully."}, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
     def delete(self, request, *args, **kwargs):
-        user = request.user
+        """Delete user account after confirming password."""
+        user = self.get_object()
+        password = request.data.get("password")
+
+        if not password:
+            return Response({"error": "Password is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify the password
+        if not check_password(password, user.password):
+            return Response({"error": "Incorrect password"}, status=status.HTTP_403_FORBIDDEN)
+
         user.delete()
         return Response({"message": "Account deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    
+    def upload_profile_picture(self, request, *args, **kwargs):
+        """Handle profile picture upload."""
+        user = self.get_object()
+        if "profile_picture" not in request.FILES:
+            return Response({"error": "No image uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.profile_picture = request.FILES["profile_picture"]
+        user.save()
+        return Response({"message": "Profile picture updated successfully", "profile_picture": user.profile_picture.url}, status=status.HTTP_200_OK)
 
 
 
