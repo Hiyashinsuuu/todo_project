@@ -5,7 +5,6 @@ from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from users.views import RegisterView, UserLoginView, VerifyEmailView, PasswordResetRequestView, PasswordResetConfirmView, CustomTokenObtainPairView 
 from todos.views import TaskViewSet, ProjectViewSet, progress_tracker, task_notifications, CreateTaskView, update_task, delete_task, get_tasks
 from django.contrib import admin
-from .views import logout_view
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -21,7 +20,6 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/users/register/', RegisterView.as_view(), name='register'),
     path('api/users/login/', UserLoginView.as_view(), name='login'),
-    path('api/logout/', logout_view, name='logout'),
     #path('api/users/google/', GoogleLogin.as_view(), name='google_login'),
     path('accounts/', include('allauth.urls')), 
     path('api/users/verify-email/<uidb64>/<token>/', VerifyEmailView.as_view(), name='email-verify'),

@@ -4,13 +4,12 @@ from rest_framework.views import APIView
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from django.contrib.auth import update_session_auth_hash, get_user_model, authenticate, logout
+from django.contrib.auth import update_session_auth_hash, get_user_model, authenticate
 from django.contrib.auth.hashers import check_password
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils.timezone import now
 from .models import Task, Project
 from .utils import notify_upcoming_tasks
-from django.http import JsonResponse
 from .serializers import TaskSerializer, ProjectSerializer, SettingsSerializer
 
 User = get_user_model()
@@ -195,7 +194,3 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 
-
-def logout_view(request):
-    logout(request)
-    return JsonResponse({"message": "Logged out successfully"}, status=200)
