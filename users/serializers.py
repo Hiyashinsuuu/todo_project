@@ -7,7 +7,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from .models import CustomUser  # Your custom user model
+from .models import CustomUser  
 
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,7 +29,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"password": ["Passwords do not match."]})
 
         try:
-            validate_password(data["password"])  # Validate Django's password rules
+            validate_password(data["password"]) 
         except ValidationError as e:
             raise serializers.ValidationError({"password": e.messages})
 
@@ -37,7 +37,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Create user and handle additional fields."""
-        validated_data.pop("confirm_password")  # Remove confirm_password
+        validated_data.pop("confirm_password") 
         full_name = validated_data.pop("full_name", "")
         name_parts = full_name.split()
         validated_data["first_name"] = name_parts[0] if name_parts else ""

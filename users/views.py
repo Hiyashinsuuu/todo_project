@@ -160,54 +160,44 @@ class RegisterView(generics.CreateAPIView):
             return "Password must be at least 8 characters long."
         if not re.search(r"[a-z]", password) or not re.search(r"[A-Z]", password):
             return "Password must contain both uppercase and lowercase letters."
-        return None  # ✅ No errors
+        return None  
 
     def create(self, request, *args, **kwargs):
-        """Override create to handle verification before saving to database."""
         serializer = self.get_serializer(data=request.data)
         
         # First check if the serializer is valid
         if not serializer.is_valid():
-            # Return serializer errors directly - they're already in the right format
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         user_data = serializer.validated_data
         password = user_data["password"]
         email = user_data.get("email")
 
-        # ✅ Validate password
+        # Validate password
         password_error = self.validate_password(password)
         if password_error:
-            # Return password error in the expected format (field name -> list of errors)
             return Response({"password": [password_error]}, status=status.HTTP_400_BAD_REQUEST)
 
         if not email:
             return Response({"email": ["Email is required for registration."]}, 
-                           status=status.HTTP_400_BAD_REQUEST)
+                        status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Create user temporarily without saving
+            # Get user data ready without actually sending email yet
             user = serializer.create(serializer.validated_data)
-            user.is_active = False  # Disable user until verification
-            
-            # Generate verification tokens
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
             verification_link = f"http://localhost:8080/verify-email/{uid}/{token}/"
             
-            # Store unverified user in cache or temporary table
+            # Store user in cache
             from django.core.cache import cache
             cache_key = f"unverified_user_{uid}_{token}"
-            
-            # Store all necessary user data
             cache_data = {
                 'user_data': serializer.validated_data,
                 'password': password,
                 'created_at': timezone.now().isoformat()
             }
-            
-            # Set cache to expire after 30 minutes
-            cache.set(cache_key, cache_data, 60 * 30) 
+            cache.set(cache_key, cache_data, 60 * 30)
             
             # HTML formatted email template
             html_message = f'''
@@ -270,29 +260,44 @@ class RegisterView(generics.CreateAPIView):
             )
             
             # Use EmailMultiAlternatives to send both HTML and plain text versions
-            from django.core.mail import EmailMultiAlternatives
+            try:
+                from django.core.mail import EmailMultiAlternatives
+                import threading
+                
+                def send_email_task():
+                    try:
+                        subject = 'Email Verification Required'
+                        from_email = settings.EMAIL_HOST_USER
+                        to_email = [email]
+                        
+                        email_message = EmailMultiAlternatives(subject, plain_text, from_email, to_email)
+                        email_message.attach_alternative(html_message, "text/html")
+                        email_message.send(fail_silently=False)
+                    except Exception as mail_error:
+                        print(f"Email sending error: {mail_error}")
+                        # Log error but don't fail registration
+                
+                # Send email in background thread to prevent blocking
+                email_thread = threading.Thread(target=send_email_task)
+                email_thread.daemon = True
+                email_thread.start()
             
-            subject = 'Email Verification Required'
-            from_email = settings.EMAIL_HOST_USER
-            to_email = [email]
+            except Exception as mail_error:
+                print(f"Email thread error: {mail_error}")
+                # Continue even if email setup fails
             
-            email_message = EmailMultiAlternatives(subject, plain_text, from_email, to_email)
-            email_message.attach_alternative(html_message, "text/html")
-            email_message.send(fail_silently=False)
-
+            # Return success regardless of email send status
             return Response(
                 {"message": "Please check your email to verify your account and complete registration."},
                 status=status.HTTP_201_CREATED,
             )
-    
+
         except serializers.ValidationError as ve:
-            # Format validation errors consistently as a field -> list of errors
             print(f"Validation Error: {ve.detail}")
             return Response(ve.detail, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             print(f"Unexpected Error: {str(e)}")
-            # Return generic errors in a consistent format
             return Response({"non_field_errors": [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
 
 class VerifyEmailView(APIView):

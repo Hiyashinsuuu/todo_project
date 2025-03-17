@@ -167,12 +167,13 @@ AUTHENTICATION_BACKENDS = [
 FRONTEND_URL = 'http://localhost:8080'
 AUTH_USER_MODEL = 'users.CustomUser'
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend' # Change it back lng to EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # Use your email provider's SMTP server
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'alisto.adet@gmail.com'  
-EMAIL_HOST_PASSWORD = 'iqco pner hjic tkyg'
+EMAIL_USE_SSL = False 
+EMAIL_HOST_USER = 'alisto.adet@gmail.com'
+EMAIL_HOST_PASSWORD = 'mlweaaqsnjklbkfv'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
@@ -226,6 +227,3 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=7),  # Set expiration to 30 minutes
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # Set refresh token expiration to 7 days
 }
-import os
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
