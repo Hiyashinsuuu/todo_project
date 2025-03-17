@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, filters, serializers, permissions, status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -24,8 +25,10 @@ def dashboard_stats(request):
     incomplete_tasks = total_tasks - completed_tasks
     important_tasks = Task.objects.filter(user=user, is_important=True).count()
 
-    projects = Project.objects.filter(user=user)
-    project_counts = {project.name: Task.objects.filter(user=user, project=project).count() for project in projects}
+    project_counts = {
+        Project.DEFAULT_CHOICES[pid]: Task.objects.filter(user=user, project=pid).count()
+        for pid in Project.DEFAULT_CHOICES.keys()
+    }
 
     return Response({
         "total_tasks": total_tasks,
@@ -97,19 +100,27 @@ def get_tasks(request):
     serializer = TaskSerializer(tasks, many=True)
     return Response(serializer.data)
 
-
 class CreateTaskView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         data = request.data.copy()
         data["user"] = request.user.id  
+
+        # ✅ Convert 'project' from instance to ID if needed
+        if isinstance(data.get("project"), Project):
+            data["project"] = data["project"].id  # Convert Project instance to ID
+
         serializer = TaskSerializer(data=data, context={"request": request})
 
         if serializer.is_valid():
             serializer.save(user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        print("🔴 Task Creation Error:", serializer.errors)  # ✅ Debugging
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 @api_view(['PUT', 'PATCH'])
@@ -163,7 +174,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = TaskSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
-    filterset_fields = ["is_completed", "is_important", "project", "priority", "recurring", "deadline"]
+    filterset_fields = ["is_completed", "is_important", "project", "recurring", "deadline"]
     ordering_fields = ["deadline", "created_at"]
     search_fields = ["title", "description"]
 
@@ -183,14 +194,10 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 
 ### 🟢 PROJECT VIEWSET ###
-class ProjectViewSet(viewsets.ModelViewSet):
+class ProjectViewSet(viewsets.ReadOnlyModelViewSet):  # ReadOnly to prevent modifications
     permission_classes = [IsAuthenticated]
     serializer_class = ProjectSerializer
+    queryset = Project.objects.all()
 
-    def get_queryset(self):
-        return Project.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
 
 

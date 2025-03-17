@@ -1,47 +1,42 @@
+from django.utils import timezone 
 from rest_framework import serializers
-from .models import Task, Project
+from .models import *
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
 class TaskSerializer(serializers.ModelSerializer):
-    priority = serializers.ChoiceField(choices=[("Low", "Low"), ("High", "High")], default="Low")
-    is_important = serializers.BooleanField(default=False)  # Toggle true/false
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())  # Auto-assign logged-in user
-    project = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all(), required=False, allow_null=True)
-    description = serializers.CharField(required=False, allow_blank=True) 
+    project = serializers.PrimaryKeyRelatedField(
+        queryset=Project.objects.all(), required=False, allow_null=True
+    ) 
 
     class Meta:
         model = Task
         fields = [
-            "id", "title", "description", "priority", "recurring",
+            "id", "title", "description", "recurring",
             "is_important", "is_completed", "deadline", "user", "project",
             "created_at", "updated_at"
         ]
 
-        def validate_title(self, value):
-            """ Ensure title is not empty """
-            if not value.strip():
-                raise serializers.ValidationError("Title is required.")
-            return value
+    def validate(self, data):
+        if not data.get("title"):
+            raise serializers.ValidationError({"title": "Title is required."})
+        if data.get("deadline") and data["deadline"] < timezone.now():
+            raise serializers.ValidationError({"deadline": "Deadline cannot be in the past."})
+        return data
 
-        def create(self, validated_data):
-            request = self.context.get("request")
-            if request and request.user and request.user.is_authenticated:
-                validated_data["user"] = request.user
-            else:
-                raise serializers.ValidationError({"user": "User must be authenticated."})
-            
-            # Assign "Random" project if no project is provided
-            if not validated_data.get("project"):
-                validated_data["project"], _ = Project.objects.get_or_create(user=request.user, name="Random")
 
-            return super().create(validated_data)
 
 class ProjectSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+
     class Meta:
         model = Project
-        fields = '__all__'
+        fields = ["id", "name"]
+
+    def get_name(self, obj):
+        return Project.DEFAULT_CHOICES[obj.id]
+
 
 class SettingsSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)

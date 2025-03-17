@@ -6,4 +6,5 @@ class TodosConfig(AppConfig):
     name = 'todos'
 
     def ready(self):
-        import todos.signals  # Import the signals when the app is ready
+        pass
+        # import todos.signals  # Import the signals when the app is ready

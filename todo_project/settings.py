@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 
+from datetime import timedelta
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -42,18 +44,19 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'dj_rest_auth',
+    'dj_rest_auth.registration',
     'rest_framework.authtoken',
-    'social_django',
+    'social_django',    
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
     'django_filters',
-    'corsheaders',
     'users',
     'todos',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  
+    "corsheaders.middleware.CorsMiddleware",  
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -133,7 +136,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -146,18 +149,22 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-        'rest_framework.permissions.AllowAny',  # Require authentication
+        'rest_framework.permissions.IsAuthenticated'
     ),
 }
 
+
+
+
 AUTHENTICATION_BACKENDS = [
-    # 'social_core.backends.google.GoogleOAuth2',  # Google OAuth2
-    'django.contrib.auth.backends.ModelBackend',  # This is the default backend
+    'social_core.backends.google.GoogleOAuth2',  # Google OAuth2
+    'django.contrib.auth.backends.ModelBackend', 
+    'allauth.account.auth_backends.AuthenticationBackend',
+    # This is the default backend
     # Add any other custom backends if applicable
 ]
 
-
+FRONTEND_URL = 'http://localhost:8080'
 AUTH_USER_MODEL = 'users.CustomUser'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend' # Change it back lng to EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -165,40 +172,60 @@ EMAIL_HOST = 'smtp.gmail.com'  # Use your email provider's SMTP server
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'alisto.adet@gmail.com'  
-EMAIL_HOST_PASSWORD = 'izpc rizb udhz fmal'
+EMAIL_HOST_PASSWORD = 'iqco pner hjic tkyg'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-CORS_ALLOW_CREDENTIALS = True
+
 
 EMAIL_REMINDER_ENABLED = True
 REMINDER_HOURS_BEFORE = 2
 
 # For the google sign in page / should be last part of connecting
-# SOCIALACCOUNT_PROVIDERS = {
-#     'google': {
-#         'APP': {
-#             'client_id': '',
-#             'secret': '',
-#             'key': ''
-#         }
-#     }
-# }
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+        'OAUTH_PKCE_ENABLED': True,
+        'FETCH_USERINFO': True,
+        'APP': {
+            'client_id': '821076926383-mg8nsvmbpe970ibirehbumfopuc9ei0a.apps.googleusercontent.com',
+            'secret': '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',
+            'key': ''
+        }        
+    }
+}
+
+SOCIALACCOUNT_STORE_TOKENS = True
 
 SITE_ID = 1
 
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_EMAIL_REQUIRED = True
-# ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 SOCIALACCOUNT_QUERY_EMAIL = True
 ACCOUNT_USERNAME_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
-LOGIN_REDIRECT_URL = '/dashboard/'
+LOGIN_REDIRECT_URL = '/callback/'
 LOGOUT_REDIRECT_URL = '/'
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",  # Vite frontend URL
+    "http://localhost:8080", # Vite frontend URL
 ]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8080",
+]
+CORS_ALLOW_ALL_ORIGINS = True  # ✅ Allow all origins (for development)
+CORS_ALLOW_CREDENTIALS = True  # ✅ Allow credentials (cookies)
 
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None 
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),  # Set expiration to 30 minutes
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # Set refresh token expiration to 7 days
+}
+import os
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

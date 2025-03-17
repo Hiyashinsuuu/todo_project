@@ -13,7 +13,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['username', 'profile_picture']
-
+        
 
 class RegisterSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True)
@@ -45,7 +45,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         try:
             user = CustomUser.objects.create_user(**validated_data)
-            user.is_active = True
+            user.is_active = False
             user.save()
             return user
         except Exception as e:
