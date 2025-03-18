@@ -215,13 +215,10 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",  # Vite frontend URL
-    "https://alisto.webhop.me",  # Your domain
+    "https://mongrel-singular-legally.ngrok-free.app",  # Your domain
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:8080",
-    "https://alisto.webhop.me",  # Your domain
-]
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 CORS_ALLOW_ALL_ORIGINS = True  # ✅ Allow all origins (for development)
 CORS_ALLOW_CREDENTIALS = True  # ✅ Allow credentials (cookies)
