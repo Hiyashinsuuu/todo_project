@@ -187,8 +187,10 @@ class RegisterView(generics.CreateAPIView):
             user = serializer.create(serializer.validated_data)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            verification_link = f"http://localhost:8080/verify-email/{uid}/{token}/"
+            verification_link = f"https://mongrel-singular-legally.ngrok-free.app/verify-email/{uid}/{token}/"
             
+
+
             # Store user in cache
             from django.core.cache import cache
             cache_key = f"unverified_user_{uid}_{token}"
@@ -488,7 +490,7 @@ class PasswordResetView(generics.GenericAPIView):
             token = default_token_generator.make_token(user)
             
             # Create reset link pointing to the frontend route
-            frontend_url = "http://localhost:8080"  # Define this in your settings.py
+            frontend_url = "https://alisto-main-d4xv.vercel.app"  # Define this in your settings.py
             reset_link = f"{frontend_url}/reset-password/{uid}/{token}"
             
             # Send email with beautiful HTML template

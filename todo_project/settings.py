@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-lge^c)!%gnl2jn7(wl7(fx%w(4(!srn^bw&+z^qhhd4rwbyzh+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['13.236.157.251', 'localhost']
+ALLOWED_HOSTS = ['13.236.157.251', 'localhost', 'alisto.webhop.me']
 
 
 # Application definition
@@ -214,11 +214,15 @@ LOGOUT_REDIRECT_URL = '/'
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080", # Vite frontend URL
+    "http://localhost:8080",  # Vite frontend URL
+    "https://alisto.webhop.me",  # Your domain
 ]
+
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8080",
+    "https://alisto.webhop.me",  # Your domain
 ]
+
 CORS_ALLOW_ALL_ORIGINS = True  # ✅ Allow all origins (for development)
 CORS_ALLOW_CREDENTIALS = True  # ✅ Allow credentials (cookies)
 
