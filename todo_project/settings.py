@@ -223,10 +223,6 @@ CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 CORS_ALLOW_ALL_ORIGINS = True  # ✅ Allow all origins (for development)
 CORS_ALLOW_CREDENTIALS = True  # ✅ Allow credentials (cookies)
 
-CORS_ALLOW_HEADERS = list(default_headers) + [
-    "ngrok-skip-browser-warning",  # Allow this custom header
-]
-
 SECURE_CROSS_ORIGIN_OPENER_POLICY = None 
 
 SIMPLE_JWT = {
