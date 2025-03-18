@@ -189,7 +189,7 @@ class RegisterView(generics.CreateAPIView):
             token = default_token_generator.make_token(user)
             verification_link = f"https://alisto-main-d4xv.vercel.app/verify-email/{uid}/{token}/"
             
-
+    
 
             # Store user in cache
             from django.core.cache import cache
