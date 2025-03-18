@@ -187,7 +187,7 @@ class RegisterView(generics.CreateAPIView):
             user = serializer.create(serializer.validated_data)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            verification_link = f"https://mongrel-singular-legally.ngrok-free.app/verify-email/{uid}/{token}/"
+            verification_link = f"https://alisto-main-d4xv.vercel.app/verify-email/{uid}/{token}/"
             
 
 
