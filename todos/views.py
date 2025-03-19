@@ -105,20 +105,20 @@ class CreateTaskView(APIView):
 
     def post(self, request):
         data = request.data.copy()
-        data["user"] = request.user.id  
-
-        # ✅ Convert 'project' from instance to ID if needed
-        if isinstance(data.get("project"), Project):
-            data["project"] = data["project"].id  # Convert Project instance to ID
-
-        serializer = TaskSerializer(data=data, context={"request": request})
-
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-        print("🔴 Task Creation Error:", serializer.errors)  # ✅ Debugging
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        print(f"Request data before processing: {data}")
+        print(f"Authenticated user: {request.user.id}")
+        
+        # Validate project ID
+        if data.get("project") is not None:
+            try:
+                # Check if project exists and belongs to user
+                project = Project.objects.get(id=data["project"], user=request.user)
+                print(f"Found project: {project}")
+            except Project.DoesNotExist:
+                print(f"Project {data['project']} not found for user {request.user.id}")
+                return Response({"project": ["Invalid project for this user"]}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Continue with normal processing...
 
 
 
