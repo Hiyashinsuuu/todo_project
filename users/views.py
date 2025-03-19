@@ -150,7 +150,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class RegisterView(generics.CreateAPIView):
-    """Register a new user with email verification and strong password validation."""
+    """Register a new user with email confirmation (but already activated and verified)."""
     queryset = CustomUser.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
@@ -165,8 +165,7 @@ class RegisterView(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        
-        # First check if the serializer is valid
+
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
@@ -174,34 +173,25 @@ class RegisterView(generics.CreateAPIView):
         password = user_data["password"]
         email = user_data.get("email")
 
-        # Validate password
         password_error = self.validate_password(password)
         if password_error:
             return Response({"password": [password_error]}, status=status.HTTP_400_BAD_REQUEST)
 
         if not email:
-            return Response({"email": ["Email is required for registration."]}, 
-                        status=status.HTTP_400_BAD_REQUEST)
+            return Response({"email": ["Email is required for registration."]}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Get user data ready without actually sending email yet
+            # Create user and set them as active & verified
             user = serializer.create(serializer.validated_data)
+            user.is_active = True
+            user.is_verified = True
+            user.save()
+
+            # Generate email verification link (for confirmation, not activation)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
             verification_link = f"https://alisto-main-d4xv.vercel.app/verify-email/{uid}/{token}/"
-            
-    
 
-            # Store user in cache
-            from django.core.cache import cache
-            cache_key = f"unverified_user_{uid}_{token}"
-            cache_data = {
-                'user_data': serializer.validated_data,
-                'password': password,
-                'created_at': timezone.now().isoformat()
-            }
-            cache.set(cache_key, cache_data, 60 * 30)
-            
             # HTML formatted email template
             html_message = f'''
             <!DOCTYPE html>
@@ -209,99 +199,82 @@ class RegisterView(generics.CreateAPIView):
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>AListō Email Verification</title>
+                <title>AListō Email Confirmation</title>
             </head>
             <body style="margin: 0; padding: 0; font-family: Arial, sans-serif;">
                 <div style="background: linear-gradient(to right, #0096FF, #ffffff, #0096FF); padding: 20px 0;">
                     <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
                         <div style="text-align: center; margin-bottom: 20px;">
-                            <img src="https://i.imgur.com/nSRCAgP.png"  alt="AListō" style="max-width: 600px;">
+                            <img src="https://i.imgur.com/nSRCAgP.png" alt="AListō" style="max-width: 600px;">
                         </div>
                         
                         <div style="padding: 20px;">
                             <h2 style="color: #0096FF; margin-bottom: 20px;">Hello!</h2>
                             
-                            <p style="color: #666666; font-size: 16px; line-height: 1.5;">Thank you for signing up!</p>
-                            
-                            <p style="color: #666666; font-size: 16px; line-height: 1.5;">Click the link below to verify your email account:</p>
-                            
-                            <div style="text-align: center; margin: 30px 0;">
-                                <a href="{verification_link}" style="background-color: #0096FF; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 5px; font-weight: bold;">Verify Email</a>
-                            </div>
-                            
-                            <p style="color: #666666; font-size: 14px; line-height: 1.5; margin-top: 30px; border-left: 4px solid #FFA500; padding-left: 15px; background-color: #FFF8E1; padding: 10px;">
-                                ⚠️ Note: This link is valid for only 30 minutes. If you do not verify within this time you will need to register again.
+                            <p style="color: #666666; font-size: 16px; line-height: 1.5;">
+                                Your account has been successfully created and verified! 🎉
                             </p>
                             
+                            <p style="color: #666666; font-size: 16px; line-height: 1.5;">
+                                Click the button below if you’d like to confirm your email address for added security:
+                            </p>
+                            
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="{verification_link}" style="background-color: #0096FF; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 5px; font-weight: bold;">Confirm Email</a>
+                            </div>
+
                             <p style="color: #666666; font-size: 16px; line-height: 1.5; margin-top: 30px;">Stay productive and rest easy,</p>
                             <p style="color: #0096FF; font-size: 16px; font-weight: bold;">AListō Team</p>
-                        </div>
-                        
-                        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eeeeee;">
-                            <img src="https://i.imgur.com/KHu4Nsd.png" alt="AListō" style="max-width: 100px;">
-                            <p style="color: #666666; font-style: italic; margin-top: 10px;">Your Plans, Your Moves, AListō Grooves.</p>
-                            <p style="color: #999999; font-size: 12px;">alisto.adet@gmail.com</p>
                         </div>
                     </div>
                 </div>
             </body>
             </html>
             '''
-            
-            # Plain text version as fallback
+
             plain_text = (
                 "Hello!\n\n"
-                "Thank you for signing up!\n\n"
-                "Click the link below to verify your email account:\n"
+                "Your account has been successfully created and verified! 🎉\n\n"
+                "Click the link below if you’d like to confirm your email address for added security:\n"
                 f"{verification_link}\n\n"
-                "⚠️ Note: This link is valid for only 30 minutes. If you do not verify within this time, "
-                "you will need to register again.\n\n"
                 "Stay productive and rest easy,\n"
-                "AListō Team\n\n"
-                "Your Plans, Your Moves, AListō Grooves.\n"
-                "alisto.adet@gmail.com"
+                "AListō Team"
             )
-            
-            # Use EmailMultiAlternatives to send both HTML and plain text versions
+
             try:
                 from django.core.mail import EmailMultiAlternatives
                 import threading
                 
                 def send_email_task():
                     try:
-                        subject = 'Email Verification Required'
+                        subject = 'Welcome to AListō! Confirm Your Email'
                         from_email = settings.EMAIL_HOST_USER
                         to_email = [email]
-                        
+
                         email_message = EmailMultiAlternatives(subject, plain_text, from_email, to_email)
                         email_message.attach_alternative(html_message, "text/html")
                         email_message.send(fail_silently=False)
                     except Exception as mail_error:
                         print(f"Email sending error: {mail_error}")
-                        # Log error but don't fail registration
                 
-                # Send email in background thread to prevent blocking
                 email_thread = threading.Thread(target=send_email_task)
                 email_thread.daemon = True
                 email_thread.start()
             
             except Exception as mail_error:
                 print(f"Email thread error: {mail_error}")
-                # Continue even if email setup fails
-            
-            # Return success regardless of email send status
+
             return Response(
-                {"message": "Please check your email to verify your account and complete registration."},
+                {"message": "Registration successful! Your account is active and verified."},
                 status=status.HTTP_201_CREATED,
             )
 
         except serializers.ValidationError as ve:
-            print(f"Validation Error: {ve.detail}")
             return Response(ve.detail, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            print(f"Unexpected Error: {str(e)}")
             return Response({"non_field_errors": [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class VerifyEmailView(APIView):
     """View to handle email verification and complete user registration."""
