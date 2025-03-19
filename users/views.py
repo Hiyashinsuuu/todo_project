@@ -50,6 +50,30 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         return self.request.user
     
 
+@login_required
+def google_login_callback(request):
+    user = request.user
+
+    social_accounts = SocialAccount.objects.filter(user=user)
+    print("Social Account for user: ", social_accounts)
+
+    social_account = social_accounts.first()
+
+    if not social_account:
+       print("No social account for user: ", user)
+       return redirect('http://localhost:8080/login/callback/?error=NoSocialAccount')
+    
+    token = SocialToken.objects.filter(account=social_account, account__providers='google').first()
+
+    if token:
+        print('Google token found: ', token.token)
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        return redirect(f'http://localhost:8080/login/callback/?access_token={access_token}')
+    else:
+        print('No Google token found for user: ', user)
+        return redirect(f'http://localhost:8080/login/callback/?error=NoGoogleToken')
+    
 
 class UploadProfilePictureView(APIView):
     permission_classes = [IsAuthenticated]
@@ -176,7 +200,7 @@ class RegisterView(generics.CreateAPIView):
                 'password': password,
                 'created_at': timezone.now().isoformat()
             }
-            cache.set(cache_key, cache_data, 60 * 60 * 24) 
+            cache.set(cache_key, cache_data, 60 * 30)
             
             # HTML formatted email template
             html_message = f'''
@@ -308,27 +332,19 @@ class VerifyEmailView(APIView):
             
             # Create the user now that email is verified
             user_data = user_cache_data['user_data']
-            user = CustomUser.objects.filter(email=user_data.get('email')).first()
-
-            if user:
-                # ✅ Update existing user instead of creating a new one
-                user.is_active = True
-                user.is_verified = True  # Ensure this field exists in your model
-                user.set_password(user_cache_data['password'])  # Restore the password
-                user.save()
-            else:
-                # ❗Failsafe: If user somehow does not exist, create them
-                user = CustomUser.objects.create_user(
-                    username=user_data.get('username'),
-                    email=user_data.get('email'),
-                    first_name=user_data.get('first_name', ''),
-                    last_name=user_data.get('last_name', ''),
-                    password=user_cache_data['password']
-                )
-                user.is_active = True
-                user.is_verified = True
-                user.save()
-
+            user = CustomUser.objects.create_user(
+                username=user_data.get('username'),
+                email=user_data.get('email'),
+                first_name=user_data.get('first_name', ''),
+                last_name=user_data.get('last_name', '')
+            )
+            
+            # Set password and activate user
+            user.set_password(user_cache_data['password'])
+            user.is_active = True
+            user.is_verified = True 
+            user.save()
+            print("Activating user:", user.username)
 
             # Delete the cache entry
             cache.delete(cache_key)
