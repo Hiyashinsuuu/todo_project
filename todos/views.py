@@ -117,8 +117,7 @@ class CreateTaskView(APIView):
             except Project.DoesNotExist:
                 print(f"Project {data['project']} not found for user {request.user.id}")
                 return Response({"project": ["Invalid project for this user"]}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Continue with normal processing...
+   
 
 
 

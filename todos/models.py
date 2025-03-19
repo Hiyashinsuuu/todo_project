@@ -11,11 +11,7 @@ class Project(models.Model):
         3: "Random",
         4: "Friends",
     }
-    user = models.ForeignKey(
-        CustomUser,
-        on_delete=models.CASCADE,
-        related_name='projects'
-    )
+    
     id = models.PositiveSmallIntegerField(primary_key=True)  # ✅ Remove choices
     name = models.CharField(max_length=255, unique=True, null=True, blank=True)
 
