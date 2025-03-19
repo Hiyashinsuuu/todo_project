@@ -265,6 +265,7 @@ class RegisterView(generics.CreateAPIView):
                 print(f"Email thread error: {mail_error}")
 
             return Response(
+                {"message": "Registration successful!"},
                 status=status.HTTP_201_CREATED,
             )
 
