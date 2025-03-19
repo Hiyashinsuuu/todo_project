@@ -342,6 +342,7 @@ class VerifyEmailView(APIView):
             # Set password and activate user
             user.set_password(user_cache_data['password'])
             user.is_active = True
+            user.is_verified = True 
             user.save()
             print("Activating user:", user.username)
 
@@ -462,24 +463,6 @@ class UserLoginView(TokenObtainPairView):
         return Response({'error': 'Invalid Credentials. Please try again'}, status=401)
 
 
-class VerifyEmailView(APIView):
-    """Verify user email and activate the account."""
-    permission_classes = [AllowAny]
-    
-    def get(self, request, uidb64, token):
-        try:
-            uid = force_str(urlsafe_base64_decode(uidb64))
-            user = CustomUser.objects.get(pk=uid)
-
-            if default_token_generator.check_token(user, token):
-                user.is_active = True  # ✅ Activate the user
-                user.save()
-                return Response({"message": "Email verified successfully. You can now log in."}, status=status.HTTP_200_OK)
-            else:
-                return Response({"error": "Invalid token or expired link."}, status=status.HTTP_400_BAD_REQUEST)
-
-        except CustomUser.DoesNotExist:
-            return Response({"error": "Invalid user."}, status=status.HTTP_400_BAD_REQUEST)
 
 class PasswordResetView(generics.GenericAPIView):
     permission_classes = [AllowAny]
