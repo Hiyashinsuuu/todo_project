@@ -35,7 +35,7 @@ import datetime
 from datetime import timedelta
 import requests
 from django.utils import timezone
-from django.contrib.auth import authenticate
+from rest_framework.exceptions import AuthenticationFailed
 
 User = get_user_model()
 
@@ -343,7 +343,8 @@ class VerifyEmailView(APIView):
             user.set_password(user_cache_data['password'])
             user.is_active = True
             user.save()
-            
+            print("Activating user:", user.username)
+
             # Delete the cache entry
             cache.delete(cache_key)
             
@@ -364,6 +365,10 @@ class VerifyEmailView(APIView):
 class CustomLoginSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
+
+        if not self.user.is_active:
+            raise AuthenticationFailed("Your account is not activated. Please verify your email.")
+
         data['username'] = self.user.username
         return data
     
@@ -439,9 +444,10 @@ class UserLoginView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         username = request.data.get('username')
         password = request.data.get('password')
+
+        user = CustomUser.objects.filter(username=username).first()
         
-        user = authenticate(username=username, password=password)
-        if user:
+        if user and user.check_password(password):
             refresh = self.get_serializer().get_token(user)
             return Response({
                 "message": "Login successful!",
@@ -490,7 +496,7 @@ class PasswordResetView(generics.GenericAPIView):
             token = default_token_generator.make_token(user)
             
             # Create reset link pointing to the frontend route
-            frontend_url = "https://alisto-main-d4xv.vercel.app/"  # Define this in your settings.py
+            frontend_url = "https://alisto-main-d4xv.vercel.app"  # Define this in your settings.py
             reset_link = f"{frontend_url}/reset-password/{uid}/{token}"
             
             # Send email with beautiful HTML template
