@@ -323,7 +323,7 @@ class VerifyEmailView(APIView):
                 )
 
             # Check if verification token is still valid (within 30 minutes)
-            created_at = datetime.fromisoformat(user_cache_data['created_at'])
+            created_at = datetime.datetime.fromisoformat(user_cache_data['created_at'])
             if timezone.now() > created_at + timedelta(minutes=30):
                 print("Token expired for user", user_cache_data['user_data'].get('email'))
                 cache.delete(cache_key)
