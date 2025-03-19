@@ -18,6 +18,15 @@ class TaskSerializer(serializers.ModelSerializer):
             "created_at", "updated_at"
         ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        user = self.context['request'].user if 'request' in self.context else None
+        if user and not user.is_anonymous:
+            # Filter projects by the current user
+            self.fields['project'].queryset = Project.objects.filter(user=user)
+        else:
+            self.fields['project'].queryset = Project.objects.none()
+
     def validate(self, data):
         if not data.get("title"):
             raise serializers.ValidationError({"title": "Title is required."})
