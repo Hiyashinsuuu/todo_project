@@ -37,7 +37,6 @@ urlpatterns = [
     path('api/todos/notifications/', task_notifications, name='task-notifications'),
     path('api/todos/progress/', progress_tracker, name='progress-tracker'),
     path('api-auth/', include('rest_framework.urls')),
-    path('callback/', google_login_callback, name='callback'),
     path('api/auth/user', UserDetailView.as_view(), name='user-detail'),
     path('api/', include('todos.urls')),
     path("api/", include("users.urls")),
