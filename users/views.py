@@ -164,8 +164,6 @@ class RegisterView(generics.CreateAPIView):
             user = serializer.create(serializer.validated_data)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            user.verification_token = token
-            user.save()
             verification_link = f"https://alisto-main-d4xv.vercel.app/verify-email/{uid}/{token}/"
             
     
@@ -178,11 +176,7 @@ class RegisterView(generics.CreateAPIView):
                 'password': password,
                 'created_at': timezone.now().isoformat()
             }
-            if not cached_token:
-                token = default_token_generator.make_token(user)
-                cache.set(cache_key, token, timeout=1800)  # Store for 30 mins
-            else:
-                token = cached_token
+            cache.set(cache_key, cache_data, 60 * 60 * 24) 
             
             # HTML formatted email template
             html_message = f'''
@@ -286,30 +280,71 @@ class RegisterView(generics.CreateAPIView):
             return Response({"non_field_errors": [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
 
 class VerifyEmailView(APIView):
+    """View to handle email verification and complete user registration."""
     permission_classes = [AllowAny]
-
+    
     def get(self, request, uidb64, token):
         try:
-            uid = urlsafe_base64_decode(uidb64).decode()
-            user = CustomUser.objects.get(pk=uid)
-
-            # ✅ Check stored token instead of regenerating
-            if user.verification_token != token:
+            from django.core.cache import cache
+            
+            # Get the cached user data
+            cache_key = f"unverified_user_{uidb64}_{token}"
+            user_cache_data = cache.get(cache_key)
+            
+            if not user_cache_data:
                 return Response(
-                    {"error": "Verification link is invalid or expired."},
+                    {"non_field_errors": ["Verification link has expired or is invalid. Please register again."]},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # ✅ Activate user
-            user.is_active = True
-            user.is_verified = True  # Ensure this field exists in your model
-            user.verification_token = None  # Remove the token after use
-            user.save()
+            # Check if verification token is still valid (within 30 minutes)
+            created_at = datetime.fromisoformat(user_cache_data['created_at'])
+            if timezone.now() > created_at + timedelta(minutes=30):
+                cache.delete(cache_key)
+                return Response(
+                    {"non_field_errors": ["Verification link has expired. Please register again."]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create the user now that email is verified
+            user_data = user_cache_data['user_data']
+            user = CustomUser.objects.filter(email=user_data.get('email')).first()
 
-            return Response({"message": "Email verified successfully!"}, status=200)
+            if user:
+                # ✅ Update existing user instead of creating a new one
+                user.is_active = True
+                user.is_verified = True  # Ensure this field exists in your model
+                user.set_password(user_cache_data['password'])  # Restore the password
+                user.save()
+            else:
+                # ❗Failsafe: If user somehow does not exist, create them
+                user = CustomUser.objects.create_user(
+                    username=user_data.get('username'),
+                    email=user_data.get('email'),
+                    first_name=user_data.get('first_name', ''),
+                    last_name=user_data.get('last_name', ''),
+                    password=user_cache_data['password']
+                )
+                user.is_active = True
+                user.is_verified = True
+                user.save()
 
-        except CustomUser.DoesNotExist:
-            return Response({"error": "Invalid user."}, status=400)
+
+            # Delete the cache entry
+            cache.delete(cache_key)
+            
+            # Redirect to frontend confirmation page or return success response
+            return Response(
+                {"message": "Email verified successfully. Your account is now active."},
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            print(f"Verification Error: {str(e)}")
+            return Response(
+                {"non_field_errors": ["An error occurred during verification. Please try again."]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         
 class CustomLoginSerializer(TokenObtainPairSerializer):
