@@ -35,6 +35,7 @@ import datetime
 from datetime import timedelta
 import requests
 from django.utils import timezone
+from django.contrib.auth import authenticate
 
 User = get_user_model()
 
@@ -438,10 +439,9 @@ class UserLoginView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         username = request.data.get('username')
         password = request.data.get('password')
-
-        user = CustomUser.objects.filter(username=username).first()
         
-        if user and user.check_password(password):
+        user = authenticate(username=username, password=password)
+        if user:
             refresh = self.get_serializer().get_token(user)
             return Response({
                 "message": "Login successful!",
