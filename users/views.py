@@ -316,22 +316,47 @@ class VerifyEmailView(APIView):
             user_cache_data = cache.get(cache_key)
             
             if not user_cache_data:
+                print("Cache miss: No data found for key", cache_key)
                 return Response(
-                    {"non_field_errors": ["Verification link has expired or is invalid. Please register again."]},
+                    {"error": "Verification link has expired or is invalid. Please register again."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
             # Check if verification token is still valid (within 30 minutes)
             created_at = datetime.fromisoformat(user_cache_data['created_at'])
             if timezone.now() > created_at + timedelta(minutes=30):
+                print("Token expired for user", user_cache_data['user_data'].get('email'))
                 cache.delete(cache_key)
                 return Response(
-                    {"non_field_errors": ["Verification link has expired. Please register again."]},
+                    {"error": "Verification link has expired. Please register again."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
             # Create the user now that email is verified
             user_data = user_cache_data['user_data']
+            
+            # Check if user already exists (could have been created by another verification attempt)
+            existing_user = CustomUser.objects.filter(email=user_data.get('email')).first()
+            if existing_user:
+                print("User already exists:", existing_user.username)
+                # If user exists but is not verified, activate them
+                if not existing_user.is_verified or not existing_user.is_active:
+                    existing_user.is_active = True
+                    existing_user.is_verified = True
+                    existing_user.save()
+                    cache.delete(cache_key)
+                    return Response(
+                        {"message": "Email verified successfully. Your account is now active."},
+                        status=status.HTTP_200_OK
+                    )
+                else:
+                    cache.delete(cache_key)
+                    return Response(
+                        {"message": "Your account was already verified. You can now log in."},
+                        status=status.HTTP_200_OK
+                    )
+            
+            # Create new user if doesn't exist
             user = CustomUser.objects.create_user(
                 username=user_data.get('username'),
                 email=user_data.get('email'),
@@ -344,12 +369,12 @@ class VerifyEmailView(APIView):
             user.is_active = True
             user.is_verified = True 
             user.save()
-            print("Activating user:", user.username)
+            print("User created and activated:", user.username)
 
             # Delete the cache entry
             cache.delete(cache_key)
             
-            # Redirect to frontend confirmation page or return success response
+            # Return success response
             return Response(
                 {"message": "Email verified successfully. Your account is now active."},
                 status=status.HTTP_200_OK
@@ -358,10 +383,9 @@ class VerifyEmailView(APIView):
         except Exception as e:
             print(f"Verification Error: {str(e)}")
             return Response(
-                {"non_field_errors": ["An error occurred during verification. Please try again."]},
+                {"error": f"An error occurred during verification: {str(e)}. Please try again."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
         
 class CustomLoginSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
