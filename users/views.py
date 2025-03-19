@@ -332,19 +332,27 @@ class VerifyEmailView(APIView):
             
             # Create the user now that email is verified
             user_data = user_cache_data['user_data']
-            user = CustomUser.objects.create_user(
-                username=user_data.get('username'),
-                email=user_data.get('email'),
-                first_name=user_data.get('first_name', ''),
-                last_name=user_data.get('last_name', '')
-            )
-            
-            # Set password and activate user
-            user.set_password(user_cache_data['password'])
-            user.is_active = True
-            user.is_verified = True 
-            user.save()
-            print("Activating user:", user.username)
+            user = CustomUser.objects.filter(email=user_data.get('email')).first()
+
+            if user:
+                # ✅ Update existing user instead of creating a new one
+                user.is_active = True
+                user.is_verified = True  # Ensure this field exists in your model
+                user.set_password(user_cache_data['password'])  # Restore the password
+                user.save()
+            else:
+                # ❗Failsafe: If user somehow does not exist, create them
+                user = CustomUser.objects.create_user(
+                    username=user_data.get('username'),
+                    email=user_data.get('email'),
+                    first_name=user_data.get('first_name', ''),
+                    last_name=user_data.get('last_name', ''),
+                    password=user_cache_data['password']
+                )
+                user.is_active = True
+                user.is_verified = True
+                user.save()
+
 
             # Delete the cache entry
             cache.delete(cache_key)
