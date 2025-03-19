@@ -108,15 +108,15 @@ class CreateTaskView(APIView):
         print(f"Request data before processing: {data}")
         print(f"Authenticated user: {request.user.id}")
         
-        # Validate project ID
+        # Validate project ID only checks if project exists, not ownership
         if data.get("project") is not None:
             try:
-                # Check if project exists and belongs to user
-                project = Project.objects.get(id=data["project"], user=request.user)
+                # Only check if project exists
+                project = Project.objects.get(id=data["project"])
                 print(f"Found project: {project}")
             except Project.DoesNotExist:
-                print(f"Project {data['project']} not found for user {request.user.id}")
-                return Response({"project": ["Invalid project for this user"]}, status=status.HTTP_400_BAD_REQUEST)
+                print(f"Project {data['project']} not found")
+                return Response({"project": ["Invalid project"]}, status=status.HTTP_400_BAD_REQUEST)
    
 
 
