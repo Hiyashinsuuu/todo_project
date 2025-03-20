@@ -9,9 +9,9 @@ from django.contrib.auth import update_session_auth_hash, get_user_model, authen
 from django.contrib.auth.hashers import check_password
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils.timezone import now
-from .models import Task, Project
+from .models import Task
 from .utils import notify_upcoming_tasks
-from .serializers import TaskSerializer, ProjectSerializer, SettingsSerializer
+from .serializers import TaskSerializer, SettingsSerializer
 
 User = get_user_model()
 
@@ -25,17 +25,11 @@ def dashboard_stats(request):
     incomplete_tasks = total_tasks - completed_tasks
     important_tasks = Task.objects.filter(user=user, is_important=True).count()
 
-    project_counts = {
-        Project.DEFAULT_CHOICES[pid]: Task.objects.filter(user=user, project=pid).count()
-        for pid in Project.DEFAULT_CHOICES.keys()
-    }
-
     return Response({
         "total_tasks": total_tasks,
         "completed_tasks": completed_tasks,
         "incomplete_tasks": incomplete_tasks,
         "important_tasks": important_tasks,
-        "tasks_by_project": project_counts,
     })
 
 
@@ -111,20 +105,6 @@ class CreateTaskView(APIView):
         # Add the user to the data before validation
         data['user'] = request.user.id
         
-        # Validate project exists for this user before serialization
-        if data.get("project") is not None:
-            try:
-                project_id = int(data["project"])  # Convert to int to be safe
-                # Check if the project exists AND belongs to the current user
-                project = Project.objects.filter(id=project_id, user=request.user).first()
-                if not project:
-                    return Response({"project": ["Project not found or doesn't belong to you"]}, 
-                                    status=status.HTTP_400_BAD_REQUEST)
-                # No need to modify data here, the serializer will handle it
-            except (ValueError, TypeError):
-                return Response({"project": ["Invalid project ID format"]}, 
-                                status=status.HTTP_400_BAD_REQUEST)
-        
         serializer = TaskSerializer(data=data, context={'request': request})
         if serializer.is_valid():
             serializer.save()  # This will use the validated data
@@ -182,7 +162,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = TaskSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
-    filterset_fields = ["is_completed", "is_important", "project", "recurring", "deadline"]
+    filterset_fields = ["is_completed", "is_important", "recurring", "deadline"]
     ordering_fields = ["deadline", "created_at"]
     search_fields = ["title", "description"]
 
@@ -199,13 +179,3 @@ class TaskViewSet(viewsets.ModelViewSet):
         total_tasks = Task.objects.filter(user=request.user).count()
         completed_tasks = Task.objects.filter(user=request.user, is_completed=True).count()
         return Response({"completed_tasks": completed_tasks, "total_tasks": total_tasks})
-
-
-### 🟢 PROJECT VIEWSET ###
-class ProjectViewSet(viewsets.ReadOnlyModelViewSet):  # ReadOnly to prevent modifications
-    permission_classes = [IsAuthenticated]
-    serializer_class = ProjectSerializer
-    queryset = Project.objects.all()
-
-
-

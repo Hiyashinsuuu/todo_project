@@ -6,15 +6,11 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class TaskSerializer(serializers.ModelSerializer):
-    project = serializers.PrimaryKeyRelatedField(
-        queryset=Project.objects.all(), required=False, allow_null=True
-    )
-    
     class Meta:
         model = Task
         fields = [
             "id", "title", "description", "recurring",
-            "is_important", "is_completed", "deadline", "user", "project",
+            "is_important", "is_completed", "deadline", "user",
             "created_at", "updated_at"
         ]
     
@@ -27,26 +23,10 @@ class TaskSerializer(serializers.ModelSerializer):
             user = self.context['user']
         
         if user and not user.is_anonymous:
-            # Log the user and their projects
+            # Log the user
             print(f"Serializer initialized with user: {user.id}")
-            print(f"User's projects: {list(Project.objects.filter(user=user).values_list('id', flat=True))}")
-            # Filter projects by the current user
-            self.fields['project'].queryset = Project.objects.filter(user=user)
         else:
             print("No user found in context or user is anonymous")
-            self.fields['project'].queryset = Project.objects.none()
-
-
-
-class ProjectSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Project
-        fields = ["id", "name"]
-
-    def get_name(self, obj):
-        return Project.DEFAULT_CHOICES[obj.id]
 
 
 class SettingsSerializer(serializers.ModelSerializer):
