@@ -116,10 +116,12 @@ class CreateTaskView(APIView):
                 print(f"Project {data['project']} not found")
                 return Response({"project": ["Invalid project"]}, status=status.HTTP_400_BAD_REQUEST)
         
-        serializer = TaskSerializer(data=data)
+        # Add the user to the data before validation
+        data['user'] = request.user.id
+        
+        serializer = TaskSerializer(data=data, context={'request': request})
         if serializer.is_valid():
-            # Change this line from owner to user
-            serializer.save(user=request.user) 
+            serializer.save()  # No need to pass user here since it's in the validated data
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
