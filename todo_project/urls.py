@@ -11,7 +11,6 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 router = DefaultRouter()
 router.register(r'tasks', TaskViewSet, basename='task')
-router.register(r'categories', ProjectViewSet, basename='project')
 
 class GoogleLogin(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
