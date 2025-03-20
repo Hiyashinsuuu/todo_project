@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/users/register/', RegisterView.as_view(), name='register'),
     path('api/users/login/', UserLoginView.as_view(), name='login'),
     path('api/users/user/', get_user_details, name='get_user_details'),
+    path('api/users/update/', update_user_details, name='update_user_details'),
     path('api/users/google/', GoogleLoginView.as_view(), name='google_login'),
     path('api/google/validate_token', validate_google_token, name='validate_token'),
     path('api/users/password-reset/', PasswordResetView.as_view(), name='password-reset'),
