@@ -100,28 +100,36 @@ def get_tasks(request):
     serializer = TaskSerializer(tasks, many=True)
     return Response(serializer.data)
 
-def post(self, request):
-    data = request.data.copy()
-    print(f"Request data before processing: {data}")
-    print(f"Authenticated user: {request.user.id}")
-    
-    if data.get("project") is not None:
-        try:
-            # Just check if the project exists in the system, not tied to a user
-            project = Project.objects.get(id=data["project"])
-            print(f"Found project: {project}")
-        except Project.DoesNotExist:
-            print(f"Project {data['project']} not found")
-            return Response({"project": ["Invalid project"]}, status=status.HTTP_400_BAD_REQUEST)
-    
-    # Add the user to the data before validation
-    data['user'] = request.user.id
-    
-    serializer = TaskSerializer(data=data, context={'request': request})
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class CreateTaskView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        data = request.data.copy()
+        print(f"Request data before processing: {data}")
+        print(f"Authenticated user: {request.user.id}")
+        
+        # Add the user to the data before validation
+        data['user'] = request.user.id
+        
+        # Validate project exists for this user before serialization
+        if data.get("project") is not None:
+            try:
+                project_id = int(data["project"])  # Convert to int to be safe
+                # Check if the project exists AND belongs to the current user
+                project = Project.objects.filter(id=project_id, user=request.user).first()
+                if not project:
+                    return Response({"project": ["Project not found or doesn't belong to you"]}, 
+                                    status=status.HTTP_400_BAD_REQUEST)
+                # No need to modify data here, the serializer will handle it
+            except (ValueError, TypeError):
+                return Response({"project": ["Invalid project ID format"]}, 
+                                status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = TaskSerializer(data=data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()  # This will use the validated data
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
