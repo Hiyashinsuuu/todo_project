@@ -20,21 +20,8 @@ class TaskSerializer(serializers.ModelSerializer):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        user = None
-        if 'request' in self.context:
-            user = self.context['request'].user
-        elif 'user' in self.context:
-            user = self.context['user']
-        
-        if user and not user.is_anonymous:
-            # Log the user and their projects
-            print(f"Serializer initialized with user: {user.id}")
-            print(f"User's projects: {list(Project.objects.filter(user=user).values_list('id', flat=True))}")
-            # Filter projects by the current user
-            self.fields['project'].queryset = Project.objects.filter(user=user)
-        else:
-            print("No user found in context or user is anonymous")
-            self.fields['project'].queryset = Project.objects.none()
+        # Remove user-specific filtering
+        self.fields['project'].queryset = Project.objects.all()
 
 
 
