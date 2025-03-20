@@ -36,7 +36,8 @@ from datetime import timedelta
 import requests
 from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, login
+
 
 User = get_user_model()
 
@@ -446,7 +447,8 @@ class UserLoginView(TokenObtainPairView):
 
         user = CustomUser.objects.filter(username=username).first()
         
-        if authenticate(username, password):
+        if user := authenticate(request=request, username=username, password=password):
+            login(request, user)
             refresh = self.get_serializer().get_token(user)
             return Response({
                 "message": "Login successful!",
