@@ -102,34 +102,41 @@ def get_tasks(request):
 
 class CreateTaskView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-
+    
     def post(self, request):
         data = request.data.copy()
         print(f"Request data before processing: {data}")
         print(f"Authenticated user: {request.user.id}")
         
-        # Add the user to the data before validation
+        # Explicitly set the user ID from the authenticated request
         data['user'] = request.user.id
         
-        # Validate project exists for this user before serialization
+        # Handle project validation
         if data.get("project") is not None:
             try:
-                project_id = int(data["project"])  # Convert to int to be safe
+                project_id = int(data["project"])
                 # Check if the project exists AND belongs to the current user
                 project = Project.objects.filter(id=project_id, user=request.user).first()
                 if not project:
+                    print(f"Project {project_id} not found or doesn't belong to user {request.user.id}")
                     return Response({"project": ["Project not found or doesn't belong to you"]}, 
                                     status=status.HTTP_400_BAD_REQUEST)
-                # No need to modify data here, the serializer will handle it
             except (ValueError, TypeError):
                 return Response({"project": ["Invalid project ID format"]}, 
                                 status=status.HTTP_400_BAD_REQUEST)
         
+        # Add more logging to debug
+        print(f"Data after processing: {data}")
+        print(f"User's projects: {list(Project.objects.filter(user=request.user).values_list('id', flat=True))}")
+        
         serializer = TaskSerializer(data=data, context={'request': request})
         if serializer.is_valid():
-            serializer.save()  # This will use the validated data
+            task = serializer.save()
+            print(f"Task created successfully: {task.id}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            print(f"Serializer errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])

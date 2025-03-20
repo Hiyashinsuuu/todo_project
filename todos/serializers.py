@@ -8,8 +8,8 @@ User = get_user_model()
 class TaskSerializer(serializers.ModelSerializer):
     project = serializers.PrimaryKeyRelatedField(
         queryset=Project.objects.all(), required=False, allow_null=True
-    ) 
-
+    )
+    
     class Meta:
         model = Task
         fields = [
@@ -17,24 +17,24 @@ class TaskSerializer(serializers.ModelSerializer):
             "is_important", "is_completed", "deadline", "user", "project",
             "created_at", "updated_at"
         ]
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        user = self.context['request'].user if 'request' in self.context else None
+        user = None
+        if 'request' in self.context:
+            user = self.context['request'].user
+        elif 'user' in self.context:
+            user = self.context['user']
+        
         if user and not user.is_anonymous:
+            # Log the user and their projects
+            print(f"Serializer initialized with user: {user.id}")
+            print(f"User's projects: {list(Project.objects.filter(user=user).values_list('id', flat=True))}")
             # Filter projects by the current user
             self.fields['project'].queryset = Project.objects.filter(user=user)
         else:
+            print("No user found in context or user is anonymous")
             self.fields['project'].queryset = Project.objects.none()
-
-    
-
-    def validate(self, data):
-        if not data.get("title"):
-            raise serializers.ValidationError({"title": "Title is required."})
-        if data.get("deadline") and data["deadline"] < timezone.now():
-            raise serializers.ValidationError({"deadline": "Deadline cannot be in the past."})
-        return data
 
 
 
