@@ -27,6 +27,8 @@ class TaskSerializer(serializers.ModelSerializer):
         else:
             self.fields['project'].queryset = Project.objects.none()
 
+    
+
     def validate(self, data):
         if not data.get("title"):
             raise serializers.ValidationError({"title": "Title is required."})
