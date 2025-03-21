@@ -120,7 +120,7 @@ def get_user_details(request):
     serializer = CustomUserSerializer(user)
     return Response(serializer.data)
 
-@api_view(['PATCH'])
+@api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def update_user_details(request):
     user = request.user
