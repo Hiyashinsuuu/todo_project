@@ -226,10 +226,10 @@ CORS_ALLOW_ALL_ORIGINS = True  # ✅ Allow all origins (for development)
 CORS_ALLOW_METHODS = [
     "GET",
     "POST",
-    "PUT",
-    "PATCH",  
-    "DELETE",
     "OPTIONS",
+    "PUT",
+    "DELETE",
+    "PATCH"  
 ]
 CORS_ALLOW_CREDENTIALS = True  # ✅ Allow credentials (cookies)
 
