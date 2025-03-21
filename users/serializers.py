@@ -17,14 +17,11 @@ class CustomUserSerializer(serializers.ModelSerializer):
         fields = ['username', 'profile_picture', 'password']
     
     def update(self, instance, validated_data):
-        # Handle password separately
         password = validated_data.pop('password', None)
         
-        # Update other fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        
-        # Set password if provided
+     
         if password is not None:
             instance.set_password(password)
         
@@ -80,3 +77,4 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         if attrs['new_password'] != attrs['confirm_password']:
             raise serializers.ValidationError({'confirm_password': "Passwords do not match."})
         return attrs
+    
