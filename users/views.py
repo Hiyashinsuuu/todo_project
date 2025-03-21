@@ -149,6 +149,17 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
+@api_view(['POST', 'PUT'])
+@permission_classes([IsAuthenticated])
+def update_user_password(request):
+    user = request.user
+    serializer = PasswordResetConfirmSerializer(data=request.data)
+    if serializer.is_valid():
+        user.set_password(serializer.validated_data['new_password'])
+        user.save()
+        return Response({"message": "Password updated successfully"})
+    return Response(serializer.errors, status=400)
+
 class RegisterView(generics.CreateAPIView):
     """Register a new user with email confirmation (but already activated and verified)."""
     queryset = CustomUser.objects.all()
