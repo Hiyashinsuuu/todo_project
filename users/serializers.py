@@ -10,10 +10,27 @@ from django.core.exceptions import ValidationError
 from .models import CustomUser  
 
 class CustomUserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False)
+    
     class Meta:
         model = CustomUser
-        fields = ['username', 'profile_picture']
+        fields = ['username', 'profile_picture', 'password']
+    
+    def update(self, instance, validated_data):
+        # Handle password separately
+        password = validated_data.pop('password', None)
         
+        # Update other fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Set password if provided
+        if password is not None:
+            instance.set_password(password)
+        
+        instance.save()
+        return instance
+    
 
 class RegisterSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True)
@@ -50,8 +67,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             return user
         except Exception as e:
             raise serializers.ValidationError({"error": str(e)}) # ✅ Ensure user is returned
-
-
 
 
 class PasswordResetSerializer(serializers.Serializer):
