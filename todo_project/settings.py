@@ -165,7 +165,7 @@ AUTHENTICATION_BACKENDS = [
     # Add any other custom backends if applicable
 ]
 
-FRONTEND_URL = 'http://localhost:8080'
+FRONTEND_URL = 'http://localhost:8081'
 AUTH_USER_MODEL = 'users.CustomUser'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -214,9 +214,8 @@ LOGOUT_REDIRECT_URL = '/'
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",  # Vite frontend URL
-    # "https://mongrel-singular-legally.ngrok-free.app", 
-    "https://alisto-main-d4xv.vercel.app"
+    "http://localhost:8080",  
+    "https://alisto-main-d4xv.vercel.app",
 ]
 
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
