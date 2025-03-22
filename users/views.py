@@ -153,7 +153,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 @permission_classes([IsAuthenticated])
 def update_user_password(request):
     user = request.user
-    serializer = PasswordResetConfirmSerializer(data=request.data)
+    serializer = PasswordUpdateSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         user.set_password(serializer.validated_data['new_password'])
         user.save()
