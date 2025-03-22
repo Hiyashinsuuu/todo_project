@@ -222,6 +222,17 @@ CORS_ALLOWED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 #CORS_ALLOW_ALL_ORIGINS = True  # ✅ Allow all origins (for development)
 CORS_ALLOW_METHODS = [
