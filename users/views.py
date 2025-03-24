@@ -489,7 +489,7 @@ class PasswordResetView(generics.GenericAPIView):
             
             # Create reset link pointing to the frontend route
             frontend_url = "https://alisto-main-d4xv.vercel.app"  # Define this in your settings.py
-            reset_link = f"{frontend_url}/reset-password/{uid}/{token}"
+            reset_link = f"{frontend_url}/password-reset-confirm/{uid}/{token}"
             
             # Send email with beautiful HTML template
             html_message = f"""
