@@ -11,6 +11,6 @@ urlpatterns = [
     path('update/', update_user_details, name='update_user_details'),
     path("google/", GoogleLoginView.as_view(), name="google_login"),
     path('user/upload-profile-picture/', UploadProfilePictureView.as_view(), name='upload-profile-picture'),
-    path('password-reset/<uidb64>/<token>/', PasswordResetView.as_view(), name='password-reset'),
+    path('password-reset/', PasswordResetView.as_view(), name='password-reset'),
     path('password-reset-confirm/<uidb64>/<token>/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
 ]
