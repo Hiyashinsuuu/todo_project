@@ -201,7 +201,7 @@ class RegisterView(generics.CreateAPIView):
             # Generate email verification link (for confirmation, not activation)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            verification_link = f"https://alisto-main-d4xv.vercel.app/verify-email/{uid}/{token}/"
+            verification_link = f"http://localhost:5173/verify-email/{uid}/{token}/"
 
             # HTML formatted email template
             html_message = f'''
