@@ -79,7 +79,6 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return attrs
     
 class PasswordUpdateSerializer(serializers.Serializer):
-    current_password = serializers.CharField(write_only=True, required=False)
     new_password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     confirm_password = serializers.CharField(write_only=True, required=True)
 
