@@ -25,7 +25,7 @@ urlpatterns = [
     path('api/users/update-password/', update_user_password, name='update_user_password'),
     path('api/users/google/', GoogleLoginView.as_view(), name='google_login'),
     path('api/google/validate_token', validate_google_token, name='validate_token'),
-    path('api/users/password-reset/', PasswordResetView.as_view(), name='password-reset'),
+    path('api/users/password-reset/<uidb64>/<token>/', PasswordResetView.as_view(), name='password-reset'),
     path('api/users/password-reset-confirm/<uidb64>/<token>/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
     path('accounts/', include('allauth.urls')), 
     path('api/users/verify-email/<uidb64>/<token>/', VerifyEmailView.as_view(), name='email-verify'),
