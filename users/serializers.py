@@ -79,15 +79,9 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return attrs
     
 class PasswordUpdateSerializer(serializers.Serializer):
-    current_password = serializers.CharField(write_only=True, required=True)
     new_password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     confirm_password = serializers.CharField(write_only=True, required=True)
 
-    def validate_current_password(self, value):
-        user = self.context['request'].user
-        if not user.check_password(value):
-            raise serializers.ValidationError("Current password is incorrect.")
-        return value
 
     def validate(self, attrs):
         if attrs['new_password'] != attrs['confirm_password']:
